@@ -1,18 +1,20 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { useUser, useClerk } from "@clerk/clerk-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Swiper, SwiperSlide } from "swiper/react";
+import { Autoplay, Pagination } from "swiper/modules";
+import "swiper/css";
+import "swiper/css/pagination";
 import api from "../../utils/api";
 
 function ProductDetails() {
   const { slug } = useParams();
-  const navigate = useNavigate();
   const { isSignedIn } = useUser();
   const { openSignIn } = useClerk();
 
   const [product, setProduct] = useState(null);
   const [relatedProducts, setRelatedProducts] = useState([]);
-  const [activeImage, setActiveImage] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedColor, setSelectedColor] = useState("");
@@ -36,19 +38,18 @@ function ProductDetails() {
           const first = data.variants[0];
           setSelectedColor(first.attributes?.color || "");
           setSelectedSize(first.attributes?.size || "");
+        } else {
+          setSelectedColor("");
+          setSelectedSize("");
         }
-        
-        // Set main image
-        const primaryImg = data.images?.find((img) => img.isPrimary) || data.images?.[0];
-        if (primaryImg) setActiveImage(primaryImg.url);
 
         // Fetch related products
         if (data.category?._id) {
           try {
             const relatedRes = await api.get(`/products?category=${data.category._id}&limit=5`);
-            setRelatedProducts(relatedRes.data.data.filter(p => p._id !== data._id).slice(0, 4));
-          } catch(err) {
-             console.error("Failed to load related products", err);
+            setRelatedProducts(relatedRes.data.data.filter((p) => p._id !== data._id).slice(0, 4));
+          } catch (err) {
+            console.error("Failed to load related products", err);
           }
         }
       } catch (err) {
@@ -79,6 +80,31 @@ function ProductDetails() {
       v.attributes?.color === selectedColor &&
       v.attributes?.size === selectedSize
   );
+
+
+  const variantImages = (selectedVariant?.images || [])
+    .map((img) => {
+      if (!img) return null;
+      if (typeof img === "string") return { url: img, altText: "" };
+      const url = img.url || img.secure_url || img.src;
+      return url ? { url, altText: img.altText || "" } : null;
+    })
+    .filter(Boolean);
+
+  const handleColorSelect = (color) => {
+    setSelectedColor(color);
+    const sizesForColor = [
+      ...new Set(
+        product?.variants
+          ?.filter((v) => v.attributes?.color === color)
+          ?.map((v) => v.attributes?.size)
+          .filter(Boolean)
+      ),
+    ];
+    if (!sizesForColor.includes(selectedSize)) {
+      setSelectedSize(sizesForColor[0] || "");
+    }
+  };
 
   const handleAddToCart = async () => {
     if (!isSignedIn) {
@@ -120,42 +146,49 @@ function ProductDetails() {
     return <div className="p-8 text-center">Product not found.</div>;
   }
 
+  const sellingPrice = selectedVariant
+    ? selectedVariant.price.sellingPrice
+    : Math.min(...(product.variants?.map((v) => v.price.sellingPrice) || [0]));
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 md:py-12">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-10 lg:gap-16">
-        {/* Product Images - Sticky on Desktop */}
+        {/* Product Images Carousel */}
         <div className="space-y-4 relative">
           <div className="md:sticky md:top-24">
             <div className="aspect-[4/5] bg-gray-50 rounded-2xl overflow-hidden shadow-sm border border-gray-100">
-              {activeImage ? (
-                <img
-                  src={activeImage}
-                  alt={product.name}
-                  className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
-                />
+              {variantImages.length > 0 ? (
+                <Swiper
+                  key={selectedVariant?._id || "no-variant"}
+                  modules={[Autoplay, Pagination]}
+                  spaceBetween={0}
+                  slidesPerView={1}
+                  loop={variantImages.length > 1}
+                  autoplay={
+                    variantImages.length > 1
+                      ? { delay: 5000, disableOnInteraction: false }
+                      : false
+                  }
+                  pagination={{ clickable: true }}
+                  grabCursor={true}
+                  className="w-full h-full product-image-swiper"
+                >
+                  {variantImages.map((img, idx) => (
+                    <SwiperSlide key={`${img.url}-${idx}`}>
+                      <img
+                        src={img.url}
+                        alt={img.altText || product.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </SwiperSlide>
+                  ))}
+                </Swiper>
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-gray-400">
                   No Image
                 </div>
               )}
             </div>
-            {product.images?.length > 1 && (
-              <div className="grid grid-cols-5 gap-3 mt-4">
-                {product.images.map((img, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setActiveImage(img.url)}
-                    className={`aspect-square bg-gray-50 rounded-lg overflow-hidden border-2 transition-all ${activeImage === img.url ? 'border-pink-600 opacity-100' : 'border-transparent opacity-70 hover:opacity-100'}`}
-                  >
-                    <img
-                      src={img.url}
-                      alt=""
-                      className="w-full h-full object-cover"
-                    />
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
         </div>
 
@@ -170,7 +203,7 @@ function ProductDetails() {
 
           <div className="flex items-center gap-2">
             <span className="text-3xl font-bold text-gray-900">
-              ₹{selectedVariant ? selectedVariant.price.sellingPrice : Math.min(...product.variants.map(v => v.price.sellingPrice))}
+              ₹{sellingPrice}
             </span>
             {selectedVariant && selectedVariant.price.mrp > selectedVariant.price.sellingPrice && (
               <>
@@ -192,7 +225,8 @@ function ProductDetails() {
                 {availableColors.map((color) => (
                   <button
                     key={color}
-                    onClick={() => setSelectedColor(color)}
+                    type="button"
+                    onClick={() => handleColorSelect(color)}
                     className={`px-4 py-2 border rounded-md ${
                       selectedColor === color
                         ? "border-pink-600 bg-pink-50 text-pink-700 font-medium"
@@ -214,6 +248,7 @@ function ProductDetails() {
                 {availableSizes.map((size) => (
                   <button
                     key={size}
+                    type="button"
                     onClick={() => setSelectedSize(size)}
                     className={`px-4 py-2 border rounded-md ${
                       selectedSize === size
@@ -233,6 +268,7 @@ function ProductDetails() {
             <h3 className="font-medium">Quantity:</h3>
             <div className="flex items-center border rounded">
               <button
+                type="button"
                 onClick={() => setQuantity((q) => Math.max(1, q - 1))}
                 className="px-3 py-1 hover:bg-gray-100"
               >
@@ -240,6 +276,7 @@ function ProductDetails() {
               </button>
               <span className="px-4 py-1">{quantity}</span>
               <button
+                type="button"
                 onClick={() => setQuantity((q) => Math.min(10, q + 1))}
                 className="px-3 py-1 hover:bg-gray-100"
               >
@@ -248,17 +285,21 @@ function ProductDetails() {
             </div>
           </div>
 
-          {/* Stock Info */}
+          {/* Stock & SKU */}
           {selectedVariant && (
-            <p className="text-sm text-gray-600">
-              {selectedVariant.stock.quantity > 0
-                ? `In Stock: ${selectedVariant.stock.quantity}`
-                : "Out of Stock"}
-            </p>
+            <div className="space-y-1">
+              <p className="text-sm text-gray-600">
+                {selectedVariant.stock.quantity > 0
+                  ? `In Stock: ${selectedVariant.stock.quantity}`
+                  : "Out of Stock"}
+              </p>
+              <p className="text-sm text-gray-500">SKU: {selectedVariant.sku}</p>
+            </div>
           )}
 
           {/* Add to Cart Button */}
           <button
+            type="button"
             onClick={handleAddToCart}
             disabled={adding || !selectedVariant || selectedVariant.stock.quantity < 1}
             className="w-full md:w-auto px-8 py-3 bg-pink-600 text-white font-semibold rounded-lg hover:bg-pink-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
@@ -328,14 +369,25 @@ function ProductDetails() {
             exit={{ opacity: 0, y: 50 }}
             className="fixed bottom-6 right-6 bg-gray-900 text-white px-6 py-3 rounded-lg shadow-2xl flex items-center gap-3 z-50"
           >
-            <div className={`w-2 h-2 rounded-full ${cartMessage.includes('Failed') ? 'bg-red-500' : 'bg-green-500'}`}></div>
+            <div className={`w-2 h-2 rounded-full ${cartMessage.includes("Failed") ? "bg-red-500" : "bg-green-500"}`}></div>
             <p className="font-medium text-sm">{cartMessage}</p>
-            <button onClick={() => setCartMessage("")} className="ml-4 text-gray-400 hover:text-white">
+            <button type="button" onClick={() => setCartMessage("")} className="ml-4 text-gray-400 hover:text-white">
               ×
             </button>
           </motion.div>
         )}
       </AnimatePresence>
+
+      <style>{`
+        .product-image-swiper,
+        .product-image-swiper .swiper-wrapper,
+        .product-image-swiper .swiper-slide {
+          height: 100%;
+        }
+        .product-image-swiper .swiper-pagination-bullet-active {
+          background: #db2777;
+        }
+      `}</style>
     </div>
   );
 }

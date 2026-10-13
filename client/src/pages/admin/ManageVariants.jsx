@@ -149,12 +149,27 @@ function ManageVariants() {
     };
 
     try {
+      const form = new FormData();
+      form.append("sku", payload.sku);
+      form.append("name", payload.name);
+      form.append("attributes", JSON.stringify(payload.attributes));
+      form.append("price", JSON.stringify(payload.price));
+      form.append("stock", JSON.stringify(payload.stock));
+      if (payload.sizeChart) {
+        form.append("sizeChart", payload.sizeChart);
+      }
+      form.append("isActive", String(payload.isActive));
+      if (images?.length) {
+        for (let i = 0; i < images.length; i++) {
+          form.append("images", images[i]);
+        }
+      }
+
       if (editingVariant) {
-        await api.put(`/products/variants/${editingVariant._id}`, payload);
+        await api.put(`/products/variants/${editingVariant._id}`, form);
         setMessage("Variant updated.");
       } else {
-        // Add variant to the product family
-        await api.post(`/products/${productId}/variants`, payload);
+        await api.post(`/products/${productId}/variants`, form);
         setMessage("Variant added.");
       }
       resetForm();

@@ -71,43 +71,45 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-gray-50">
       {/* Top Navbar (shown only on customer pages, not admin) */}
       
       <Navbar isAdmin={isAdmin} />
-      <Routes>
-        {/* Customer Routes */}
-        <Route path="/" element={<Home />} />
-        <Route path="/products" element={<Products />} />
-        <Route path="/products/:slug" element={<ProductDetails />} />
-        <Route path="/cart" element={<Cart />} />
-        <Route path="/checkout" element={<Checkout />} />
-        <Route path="/orders" element={<Orders />} />
-        <Route path="/orders/:id" element={<Orders />} />
-        <Route path="/profile" element={<Profile />} />
+      <main className="flex-1">
+        <Routes>
+          {/* Customer Routes */}
+          <Route path="/" element={<Home />} />
+          <Route path="/products" element={<Products />} />
+          <Route path="/products/:slug" element={<ProductDetails />} />
+          <Route path="/cart" element={<Cart />} />
+          <Route path="/checkout" element={<Checkout />} />
+          <Route path="/orders" element={<Orders />} />
+          <Route path="/orders/:id" element={<Orders />} />
+          <Route path="/profile" element={<Profile />} />
 
-        {/* Admin Routes */}
-        <Route
-          path="/admin"
-          element={
-            <AdminRoute>
-              <AdminLayout />
-            </AdminRoute>
-          }
-        >
-          <Route index element={<Dashboard />} />
-          <Route path="products" element={<ManageProducts />} />
-          <Route path="products/:productId/variants" element={<ManageVariants />} />
-          <Route path="categories" element={<ManageCategories />} />
-          <Route path="brands" element={<ManageBrands />} />
-          <Route path="orders" element={<ManageOrders />} />
-          <Route path="orders/:id" element={<ManageOrders />} />
-          <Route path="users" element={<ManageUsers />} />
-        </Route>
+          {/* Admin Routes */}
+          <Route
+            path="/admin"
+            element={
+              <AdminRoute>
+                <AdminLayout />
+              </AdminRoute>
+            }
+          >
+            <Route index element={<Dashboard />} />
+            <Route path="products" element={<ManageProducts />} />
+            <Route path="products/:productId/variants" element={<ManageVariants />} />
+            <Route path="categories" element={<ManageCategories />} />
+            <Route path="brands" element={<ManageBrands />} />
+            <Route path="orders" element={<ManageOrders />} />
+            <Route path="orders/:id" element={<ManageOrders />} />
+            <Route path="users" element={<ManageUsers />} />
+          </Route>
 
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </main>
 
       <Footer />
     </div>

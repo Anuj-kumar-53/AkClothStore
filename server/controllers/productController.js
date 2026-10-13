@@ -245,6 +245,7 @@ export const getProducts = async (req, res, next) => {
       color,
       size,
       sort,
+      isFeatured,
       page = 1,
       limit = 10,
     } = req.query;
@@ -274,6 +275,14 @@ export const getProducts = async (req, res, next) => {
 
     if (brand) {
       query.brand = brand;
+    }
+
+    /* -------------------------
+       Featured filter
+    ------------------------- */
+
+    if (isFeatured !== undefined && isFeatured !== "") {
+      query.isFeatured = parseBoolean(isFeatured, false);
     }
 
     /* -------------------------
@@ -337,12 +346,30 @@ export const getProducts = async (req, res, next) => {
     const total = await ProductFamily.countDocuments(query);
 
     /* -------------------------
+       Date / default sorting
+    ------------------------- */
+
+    let mongoSort = null;
+
+    if (sort === "newest" || sort === "-createdAt") {
+      mongoSort = { createdAt: -1 };
+    } else if (sort === "oldest" || sort === "createdAt") {
+      mongoSort = { createdAt: 1 };
+    }
+
+    /* -------------------------
        Get products
     ------------------------- */
 
-    const products = await ProductFamily.find(query)
+    let productsQuery = ProductFamily.find(query)
       .populate("brand", "name slug logo")
-      .populate("category", "name slug")
+      .populate("category", "name slug");
+
+    if (mongoSort) {
+      productsQuery = productsQuery.sort(mongoSort);
+    }
+
+    const products = await productsQuery
       .skip((pageNum - 1) * limitNum)
       .limit(limitNum);
 

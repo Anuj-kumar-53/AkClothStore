@@ -78,7 +78,10 @@ function Products() {
     } else {
       newParams.delete(key);
     }
-    newParams.set("page", "1");
+    // Changing filters resets to page 1; page clicks must keep the selected page
+    if (key !== "page") {
+      newParams.set("page", "1");
+    }
     setSearchParams(newParams);
   };
 
@@ -147,6 +150,7 @@ function Products() {
               className="w-full border rounded px-3 py-2"
             >
               <option value="">Default</option>
+              <option value="newest">Newest</option>
               <option value="price-low-to-high">Price: Low to High</option>
               <option value="price-high-to-low">Price: High to Low</option>
             </select>
