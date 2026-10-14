@@ -166,7 +166,7 @@ function ProductDetails() {
                   loop={variantImages.length > 1}
                   autoplay={
                     variantImages.length > 1
-                      ? { delay: 5000, disableOnInteraction: false }
+                      ? { delay: 4000, disableOnInteraction: false }
                       : false
                   }
                   pagination={{ clickable: true }}
