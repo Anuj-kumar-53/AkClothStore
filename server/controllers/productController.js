@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import ProductFamily from "../models/ProductFamily.js";
 import ProductVariant from "../models/ProductVariant.js";
 import SizeChart from "../models/SizeChart.js";
@@ -80,9 +81,9 @@ const collectIdsForTerm = async (term) => {
 
   const refMatches = refClauses.length
     ? await ProductFamily.find({
-        isActive: true,
-        $or: refClauses,
-      }).select("_id")
+      isActive: true,
+      $or: refClauses,
+    }).select("_id")
     : [];
 
   const ids = new Set();
@@ -135,6 +136,89 @@ const applyIdFilter = (query, ids) => {
   }
 
   query._id = { $in: ids };
+};
+
+const buildProductTypeFilter = async (type) => {
+  if (!type || type === "all") return null;
+  const normalized = String(type).trim().toLowerCase();
+
+  const typeMap = {
+    shirt: {
+      categoryRegex: /^(shirts?)$/i,
+      nameRegex: /\b(shirts?)\b/i,
+      excludeRegex: /\b(t[- ]?shirts?|tees?)\b/i,
+      tagRegex: /\b(shirts?)\b/i,
+    },
+    "t-shirt": {
+      categoryRegex: /^(t[- ]?shirts?|tees?|polo[- ]?shirts?)$/i,
+      nameRegex: /\b(t[- ]?shirts?|tees?|polo[- ]?shirts?)\b/i,
+      tagRegex: /\b(t[- ]?shirts?|tees?|polo[- ]?shirts?)\b/i,
+    },
+    pants: {
+      categoryRegex: /^(pants?|trousers?|jeans|bottoms?|chinos?|trackpants?|joggers?|cargos?)$/i,
+      nameRegex: /\b(pants?|trousers?|jeans|bottoms?|chinos?|trackpants?|joggers?|cargos?)\b/i,
+      tagRegex: /\b(pants?|trousers?|jeans|bottoms?|chinos?|trackpants?|joggers?|cargos?)\b/i,
+    },
+    slippers: {
+      categoryRegex: /^(slippers?|flip[- ]?flops?|slides?|chappals?)$/i,
+      nameRegex: /\b(slippers?|flip[- ]?flops?|slides?|chappals?)\b/i,
+      tagRegex: /\b(slippers?|flip[- ]?flops?|slides?|chappals?)\b/i,
+    },
+    shoes: {
+      categoryRegex: /^(shoes?|sneakers?|footwear|boots?|loafers?|sports shoes?)$/i,
+      nameRegex: /\b(shoes?|sneakers?|boots?|loafers?|sports shoes?|running shoes?)\b/i,
+      excludeRegex: /\b(slippers?|flip[- ]?flops?|slides?|chappals?)\b/i,
+      tagRegex: /\b(shoes?|sneakers?|boots?|loafers?)\b/i,
+    },
+    blanket: {
+      categoryRegex: /^(blankets?|quilts?|duvets?|comforters?|bedsheets?|throws?)$/i,
+      nameRegex: /\b(blankets?|quilts?|duvets?|comforters?|bedsheets?|throws?)\b/i,
+      tagRegex: /\b(blankets?|quilts?|duvets?|comforters?|bedsheets?|throws?)\b/i,
+    },
+    jackets: {
+      categoryRegex: /^(jackets?|coats?|blazers?|hoodies?|sweatshirts?|sweaters?|windcheaters?)$/i,
+      nameRegex: /\b(jackets?|coats?|blazers?|hoodies?|sweatshirts?|sweaters?|windcheaters?|winter wear)\b/i,
+      tagRegex: /\b(jackets?|coats?|blazers?|hoodies?|sweatshirts?|sweaters?|windcheaters?)\b/i,
+    },
+    bags: {
+      categoryRegex: /^(bags?|backpacks?|handbags?|totes?|luggage|wallets?|purses?|duffels?)$/i,
+      nameRegex: /\b(bags?|backpacks?|handbags?|totes?|luggage|wallets?|purses?|duffels?)\b/i,
+      tagRegex: /\b(bags?|backpacks?|handbags?|totes?|luggage|wallets?|purses?|duffels?)\b/i,
+    },
+  };
+
+  const config = typeMap[normalized];
+  if (!config) return null;
+
+  const matchedCategories = await Category.find({
+    $or: [
+      { name: { $regex: config.categoryRegex } },
+      { slug: { $regex: config.categoryRegex } },
+    ],
+  }).select("_id");
+
+  const categoryIds = matchedCategories.map((c) => c._id);
+
+  const orClauses = [
+    { name: { $regex: config.nameRegex } },
+    { tags: { $regex: config.tagRegex } },
+    { description: { $regex: config.nameRegex } },
+  ];
+
+  if (categoryIds.length > 0) {
+    orClauses.push({ category: { $in: categoryIds } });
+  }
+
+  const clauses = [{ $or: orClauses }];
+
+  if (config.excludeRegex) {
+    clauses.push({
+      name: { $not: config.excludeRegex },
+      tags: { $not: config.excludeRegex },
+    });
+  }
+
+  return clauses;
 };
 
 /* =========================================================
@@ -266,7 +350,29 @@ export const getProducts = async (req, res, next) => {
     ------------------------- */
 
     if (category) {
-      query.category = category;
+      const isObjectIdVal = (val) =>
+        typeof val === "string" && /^[0-9a-fA-F]{24}$/.test(val);
+
+      if (isObjectIdVal(category)) {
+        query.category = category;
+      }
+    }
+
+    const isObjectIdCheck = (val) =>
+      typeof val === "string" && /^[0-9a-fA-F]{24}$/.test(val);
+
+    const targetType =
+      req.query.productType ||
+      (!isObjectIdCheck(category) && category ? category : null);
+
+    if (targetType && targetType !== "all") {
+      const typeClauses = await buildProductTypeFilter(targetType);
+      if (typeClauses && typeClauses.length > 0) {
+        if (!query.$and) {
+          query.$and = [];
+        }
+        query.$and.push(...typeClauses);
+      }
     }
 
     /* -------------------------
@@ -349,7 +455,7 @@ export const getProducts = async (req, res, next) => {
        Date / default sorting
     ------------------------- */
 
-    let mongoSort = null;
+    let mongoSort = { createdAt: -1, _id: -1 };
 
     if (sort === "newest" || sort === "-createdAt") {
       mongoSort = { createdAt: -1 };
