@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, ShoppingBag, ChevronDown, Menu, X } from 'lucide-react';
 import { SignInButton, UserButton, SignedIn, SignedOut, useUser } from '@clerk/clerk-react';
@@ -77,16 +77,33 @@ const Navbar = ({ isAdmin }) => {
     }
   };
 
+
+  const handleLogoClick = (e) => {
+    if (location.pathname === "/") {
+      e.preventDefault();
+
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+    }
+  };
+
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* ---------- Logo ---------- */}
-          <Link to="/" className="flex items-center gap-2 shrink-0">
-            <ShoppingBag className="h-8 w-8 text-pink-600" />
-            <span className="text-xl font-extrabold tracking-tight text-gray-800">
-              AK<span className="text-pink-600">Cloth</span>
-            </span>
+          <Link
+            to="/"
+            onClick={handleLogoClick}
+            className="flex items-center shrink-0"
+          >
+            <img
+              src="/ak-logo.png"
+              alt="AK Cloth Store"
+              className="h-10 w-auto sm:h-12 md:h-14 object-contain"
+            />
           </Link>
 
           {/* ---------- Desktop Navigation (Categories) ---------- */}
@@ -101,9 +118,8 @@ const Navbar = ({ isAdmin }) => {
                 <button className="flex items-center gap-1 text-gray-700 hover:text-pink-600 font-medium transition-colors py-2">
                   {cat.name}
                   <ChevronDown
-                    className={`h-4 w-4 transition-transform ${
-                      activeDropdown === cat.name ? 'rotate-180' : ''
-                    }`}
+                    className={`h-4 w-4 transition-transform ${activeDropdown === cat.name ? 'rotate-180' : ''
+                      }`}
                   />
                 </button>
 

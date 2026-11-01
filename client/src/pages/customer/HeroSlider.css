@@ -1,0 +1,259 @@
+.hero-coverflow {
+    position: relative;
+    width: 100%;
+    height: 480px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f4f4f4;
+    perspective: 1200px;
+}
+
+.coverflow-track {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+
+    cursor: grab;
+    touch-action: pan-y;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.coverflow-track.dragging {
+    cursor: grabbing;
+}
+
+.coverflow-card {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+
+    width: 64%;
+    height: 85%;
+
+    transform:
+        translate(-50%, -50%) translateX(calc(var(--offset) * 58%)) scale(0.78) rotateY(calc(var(--offset) * -7deg));
+
+    border-radius: 18px;
+    overflow: hidden;
+
+    opacity: 0;
+    filter: brightness(0.65);
+
+    transition:
+        transform 0.85s cubic-bezier(0.22, 1, 0.36, 1),
+        opacity 0.85s ease,
+        filter 0.85s ease,
+        box-shadow 0.85s ease;
+
+    cursor: pointer;
+    pointer-events: auto;
+}
+
+/* Center card */
+.coverflow-card.active {
+    transform:
+        translate(-50%, -50%) translateX(0) scale(1) rotateY(0deg);
+
+    opacity: 1;
+    filter: brightness(1);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+
+    cursor: default;
+}
+
+/* Side cards */
+.coverflow-card.side {
+    opacity: 0.85;
+    filter: brightness(0.75);
+}
+
+/* Images */
+.coverflow-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    user-select: none;
+    -webkit-user-drag: none;
+    pointer-events: none;
+}
+
+/* Dark overlay */
+.coverflow-overlay {
+    position: absolute;
+    inset: 0;
+
+    display: flex;
+    align-items: center;
+
+    background: linear-gradient(90deg,
+            rgba(0, 0, 0, 0.65),
+            rgba(0, 0, 0, 0.05));
+}
+
+/* Text content */
+.coverflow-content {
+    padding: 45px;
+    max-width: 500px;
+    color: white;
+}
+
+.coverflow-content h1 {
+    font-size: clamp(28px, 4vw, 48px);
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: 15px;
+}
+
+.coverflow-content p {
+    font-size: 18px;
+    margin-bottom: 25px;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.coverflow-btn {
+    display: inline-block;
+    padding: 13px 28px;
+    background: white;
+    color: #222;
+    border-radius: 30px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: 0.3s;
+}
+
+.coverflow-btn:hover {
+    background: #ec008c;
+    color: white;
+}
+
+/* Bottom dots */
+.coverflow-dots {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 30;
+
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.coverflow-dot {
+    width: 9px;
+    height: 9px;
+    padding: 0;
+    border: none;
+    border-radius: 20px;
+
+    background: rgba(255, 255, 255, 0.65);
+    cursor: pointer;
+
+    transition: all 0.4s ease;
+}
+
+.coverflow-dot.selected {
+    width: 28px;
+    background: #ec008c;
+}
+
+/* Tablet */
+@media (max-width: 768px) {
+    .hero-coverflow {
+        height: 380px;
+    }
+
+    .coverflow-card {
+        width: 76%;
+        height: 82%;
+
+        transform:
+            translate(-50%, -50%) translateX(calc(var(--offset) * 68%)) scale(0.82) rotateY(calc(var(--offset) * -5deg));
+    }
+
+    .coverflow-card.active {
+        transform:
+            translate(-50%, -50%) translateX(0) scale(1) rotateY(0deg);
+    }
+
+    .coverflow-content {
+        padding: 25px;
+    }
+
+    .coverflow-content h1 {
+        font-size: 28px;
+    }
+
+    .coverflow-content p {
+        font-size: 14px;
+    }
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+    .hero-coverflow {
+        height: 310px;
+    }
+
+    .coverflow-card {
+        width: 82%;
+        height: 78%;
+        border-radius: 14px;
+
+        transform:
+            translate(-50%, -50%) translateX(calc(var(--offset) * 85%)) scale(0.82) rotateY(calc(var(--offset) * -4deg));
+    }
+
+    .coverflow-card.active {
+        transform:
+            translate(-50%, -50%) translateX(0) scale(1) rotateY(0deg);
+    }
+
+    .coverflow-content {
+        padding: 18px;
+    }
+
+    .coverflow-content h1 {
+        font-size: 23px;
+        margin-bottom: 10px;
+    }
+
+    .coverflow-content p {
+        font-size: 13px;
+        margin-bottom: 16px;
+    }
+
+    .coverflow-btn {
+        padding: 10px 20px;
+        font-size: 13px;
+    }
+
+    .coverflow-dots {
+        bottom: 12px;
+        gap: 7px;
+    }
+}
+
+/* Very small phones */
+@media (max-width: 360px) {
+    .hero-coverflow {
+        height: 280px;
+    }
+
+    .coverflow-card {
+        width: 84%;
+    }
+
+    .coverflow-content h1 {
+        font-size: 20px;
+    }
+
+    .coverflow-content p {
+        font-size: 12px;
+    }
+}
