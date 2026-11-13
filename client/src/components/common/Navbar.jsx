@@ -5,6 +5,8 @@ import { Search, ShoppingBag, ChevronDown, Menu, X } from 'lucide-react';
 import { SignInButton, UserButton, SignedIn, SignedOut, useUser } from '@clerk/clerk-react';
 import api from '../../utils/api';
 
+import InstallAppButton from '../InstallAppButton';
+
 // ---------- Category Data ----------
 const categories = [
   {
@@ -44,7 +46,8 @@ const Navbar = ({ isAdmin }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [cartCount, setCartCount] = useState(0);
   const navigate = useNavigate();
-  const { isSignedIn } = useUser();
+
+  const { isLoaded, isSignedIn } = useUser();
 
   const fetchCartCount = async () => {
     if (!isSignedIn) {
@@ -179,6 +182,8 @@ const Navbar = ({ isAdmin }) => {
 
           {/* ---------- Right Side – Clerk Auth & Links ---------- */}
           <div className="flex items-center space-x-2">
+            {/* <InstallAppButton /> */}
+            {isLoaded && !isSignedIn && <InstallAppButton />}
             <SignedOut>
               <SignInButton mode="modal">
                 <button className="px-4 py-2 text-sm font-medium text-white bg-pink-600 rounded-full hover:bg-pink-700 transition-colors">
