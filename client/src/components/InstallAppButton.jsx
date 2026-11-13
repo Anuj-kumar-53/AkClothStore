@@ -2,35 +2,68 @@
 import { useState, useEffect } from "react";
 import { Download } from "lucide-react";
 
+// Module-level cache so we capture the event even before the component mounts
+let globalDeferredPrompt = typeof window !== "undefined" ? window.deferredInstallPrompt || null : null;
+
+if (typeof window !== "undefined") {
+    // Catch existing prompt if index.html or another script already caught it
+    if (window.deferredInstallPrompt) {
+        globalDeferredPrompt = window.deferredInstallPrompt;
+    }
+
+    window.addEventListener("beforeinstallprompt", (e) => {
+        // Prevent default mini-infobar or browser banner
+        e.preventDefault();
+        globalDeferredPrompt = e;
+        window.deferredInstallPrompt = e;
+        // Dispatch custom event to notify any mounted button instances
+        window.dispatchEvent(new CustomEvent("pwa-prompt-available", { detail: e }));
+    });
+
+    window.addEventListener("appinstalled", () => {
+        globalDeferredPrompt = null;
+        window.deferredInstallPrompt = null;
+        window.dispatchEvent(new Event("app-installed-state"));
+    });
+}
+
 const InstallAppButton = ({ className = "" }) => {
-    // Check installation status immediately to avoid button flickering
     const [isInstalled, setIsInstalled] = useState(() => {
+        if (typeof window === "undefined") return false;
         return (
             window.matchMedia("(display-mode: standalone)").matches ||
             window.navigator.standalone === true
         );
     });
 
-    const [installPrompt, setInstallPrompt] = useState(null);
+    const [installPrompt, setInstallPrompt] = useState(() => {
+        return globalDeferredPrompt || (typeof window !== "undefined" ? window.deferredInstallPrompt : null);
+    });
+
     const [showInstructions, setShowInstructions] = useState(false);
     const [isIOS, setIsIOS] = useState(false);
 
     useEffect(() => {
-        setIsIOS(/iphone|ipad|ipod/i.test(window.navigator.userAgent));
+        setIsIOS(/iphone|ipad|ipod/i.test(navigator.userAgent));
 
-        const standaloneQuery = window.matchMedia(
-            "(display-mode: standalone)"
-        );
+        const standaloneQuery = window.matchMedia("(display-mode: standalone)");
 
         const handleDisplayModeChange = (event) => {
-            setIsInstalled(
-                event.matches || window.navigator.standalone === true
-            );
+            setIsInstalled(event.matches || window.navigator.standalone === true);
         };
 
-        const handleBeforeInstallPrompt = (event) => {
-            event.preventDefault();
-            setInstallPrompt(event);
+        const handlePromptAvailable = (e) => {
+            const prompt = e?.detail || globalDeferredPrompt || window.deferredInstallPrompt || null;
+            if (prompt) {
+                setInstallPrompt(prompt);
+            }
+        };
+
+        const handleNativePrompt = (e) => {
+            e.preventDefault();
+            globalDeferredPrompt = e;
+            window.deferredInstallPrompt = e;
+            setInstallPrompt(e);
         };
 
         const handleAppInstalled = () => {
@@ -39,52 +72,50 @@ const InstallAppButton = ({ className = "" }) => {
             setShowInstructions(false);
         };
 
-        standaloneQuery.addEventListener(
-            "change",
-            handleDisplayModeChange
-        );
+        // Sync immediately if prompt exists on window or module
+        if (window.deferredInstallPrompt || globalDeferredPrompt) {
+            setInstallPrompt(globalDeferredPrompt || window.deferredInstallPrompt);
+        }
 
-        window.addEventListener(
-            "beforeinstallprompt",
-            handleBeforeInstallPrompt
-        );
-
+        window.addEventListener("pwa-prompt-available", handlePromptAvailable);
+        window.addEventListener("beforeinstallprompt", handleNativePrompt);
+        window.addEventListener("app-installed-state", handleAppInstalled);
         window.addEventListener("appinstalled", handleAppInstalled);
+        standaloneQuery.addEventListener("change", handleDisplayModeChange);
 
         return () => {
-            standaloneQuery.removeEventListener(
-                "change",
-                handleDisplayModeChange
-            );
-
-            window.removeEventListener(
-                "beforeinstallprompt",
-                handleBeforeInstallPrompt
-            );
-
-            window.removeEventListener(
-                "appinstalled",
-                handleAppInstalled
-            );
+            window.removeEventListener("pwa-prompt-available", handlePromptAvailable);
+            window.removeEventListener("beforeinstallprompt", handleNativePrompt);
+            window.removeEventListener("app-installed-state", handleAppInstalled);
+            window.removeEventListener("appinstalled", handleAppInstalled);
+            standaloneQuery.removeEventListener("change", handleDisplayModeChange);
         };
     }, []);
 
     const handleInstallClick = async () => {
-        if (!installPrompt) {
+        const promptToUse = installPrompt || globalDeferredPrompt || window.deferredInstallPrompt;
+
+        if (!promptToUse) {
             setShowInstructions((prev) => !prev);
             return;
         }
 
-        await installPrompt.prompt();
+        try {
+            await promptToUse.prompt();
+            const { outcome } = await promptToUse.userChoice;
 
-        const choice = await installPrompt.userChoice;
-
-        console.log("Installation choice:", choice.outcome);
-
-        setInstallPrompt(null);
+            if (outcome === "accepted") {
+                globalDeferredPrompt = null;
+                window.deferredInstallPrompt = null;
+                setInstallPrompt(null);
+                setShowInstructions(false);
+            }
+        } catch (error) {
+            console.error("Installation failed:", error);
+            setShowInstructions(true);
+        }
     };
 
-    // Never display inside an installed application
     if (isInstalled) return null;
 
     return (
@@ -99,8 +130,8 @@ const InstallAppButton = ({ className = "" }) => {
             </button>
 
             {showInstructions && (
-                <div className="absolute right-0 top-full z-50 mt-2 w-72 rounded-lg border bg-white p-4 shadow-xl text-sm text-gray-800">
-                    <h3 className="font-semibold mb-2">
+                <div className="fixed bottom-4 left-3 right-3 z-[9999] mx-auto w-auto max-w-sm rounded-lg border bg-white p-4 text-sm text-gray-800 shadow-xl sm:absolute sm:bottom-auto sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-72">
+                    <h3 className="mb-2 font-semibold">
                         Install AK Cloth Store
                     </h3>
 
@@ -116,15 +147,14 @@ const InstallAppButton = ({ className = "" }) => {
                         </p>
                     ) : (
                         <p>
-                            Open this website in Chrome or another supported
-                            browser. Open its menu and look for "Install app"
-                            or "Add to Home Screen".
+                            Open this website in Chrome. Tap the three-dot
+                            menu and select "Install and create shortcut".
                         </p>
                     )}
 
                     <button
                         onClick={() => setShowInstructions(false)}
-                        className="mt-3 text-pink-600 font-medium"
+                        className="mt-3 font-medium text-pink-600"
                     >
                         Close
                     </button>

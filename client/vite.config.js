@@ -8,6 +8,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss(),
   VitePWA({
     registerType: 'prompt',
+    id: '/',
 
     manifest: {
       name: 'AK Cloth Store',
@@ -37,7 +38,7 @@ export default defineConfig({
           src: '/pwa-512x512.png',
           sizes: '512x512',
           type: 'image/png',
-          purpose: 'any maskable',
+          purpose: 'maskable',
         },
       ],
 
